@@ -1,0 +1,13 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "shunt",
+  "version": "1.0.0",
+  "description": "Saves tokens by shunting I/O-heavy work to a cheap worker model. Hooks block large file reads and redirect to bulk-read/code-write, which run one headless turn on whichever CLI you have: claude, gemini or codex.",
+  "author": { "name": "SalehB1" },
+  "homepage": "https://github.com/SalehB1/shunt-anywhere",
+  "repository": "https://github.com/SalehB1/shunt-anywhere",
+  "license": "Apache-2.0",
+  "keywords": ["token-optimization", "model-routing", "delegation", "context"],
+  "skills": "./skills/",
+  "hooks": "./hooks/hooks.json"
+}

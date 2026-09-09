@@ -1,0 +1,26 @@
+{
+  "hooks": {
+    "BeforeTool": [
+      {
+        "matcher": "read_file|read_many_files",
+        "hooks": [
+          {
+            "type": "command",
+            "name": "shunt-file-size",
+            "command": "\"${extensionPath:-$HOME/.gemini/extensions/shunt}/plugins/shunt/hooks/check-file-size\""
+          }
+        ]
+      },
+      {
+        "matcher": "run_shell_command",
+        "hooks": [
+          {
+            "type": "command",
+            "name": "shunt-bash-read",
+            "command": "\"${extensionPath:-$HOME/.gemini/extensions/shunt}/plugins/shunt/hooks/check-bash-read\""
+          }
+        ]
+      }
+    ]
+  }
+}

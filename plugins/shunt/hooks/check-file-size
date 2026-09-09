@@ -1,0 +1,74 @@
+#!/bin/bash
+# Block whole-file reads of large files and point at the bulk-read script.
+#
+# Derived from spotify/portal-ai-plugins plugins/shunt/hooks/check-file-size
+# (Apache-2.0). Changed: blocks with exit 2 + stderr, which is the one refusal
+# every host understands (Claude Code PreToolUse, Codex PreToolUse, Gemini CLI
+# BeforeTool), and the refusal now carries a runnable command instead of a skill
+# name that differs per host.
+#
+# Self-contained: all routing logic lives here, no context file needed.
+
+MIN_LINES="${SHUNT_MIN_LINES:-350}"
+case "$MIN_LINES" in ''|*[!0-9]*) MIN_LINES=350 ;; esac
+
+BULK_READ="$(cd "$(dirname "$0")/../scripts" 2>/dev/null && pwd)/bulk-read"
+
+input=$(cat)
+
+# No jq, no gate. Fail open and say so: a silent pass looks like a working
+# plugin that never saves a token.
+if ! command -v jq >/dev/null 2>&1; then
+  echo "shunt: jq not found, large-file gate disabled (apt install jq)" >&2
+  exit 0
+fi
+
+# Targeted reads are already what we would ask for — let them through.
+offset=$(printf '%s' "$input" | jq -r '.tool_input.offset // empty')
+limit=$(printf '%s' "$input" | jq -r '.tool_input.limit // empty')
+if [ -n "$offset" ] || [ -n "$limit" ]; then exit 0; fi
+
+# One read tool may name one file (file_path, or absolute_path on older Gemini
+# builds) or a batch of them (read_many_files paths).
+paths=$(printf '%s' "$input" | jq -r '
+  [ (.tool_input.file_path? // empty),
+    (.tool_input.absolute_path? // empty),
+    (.tool_input.paths? // [] | .[]? ) ]
+  | map(select(type == "string" and . != "")) | unique | .[]')
+[ -z "$paths" ] && exit 0
+
+total=0
+count=0
+named=""
+while IFS= read -r p; do
+  [ -z "$p" ] && continue
+  # A path that does not resolve to a readable file is the read tool's problem,
+  # not ours — including globs, which we cannot size.
+  [ -f "$p" ] && [ -r "$p" ] || continue
+  lines=$(wc -l < "$p" 2>/dev/null | tr -d ' ')
+  case "$lines" in ''|*[!0-9]*) continue ;; esac
+  total=$((total + lines))
+  count=$((count + 1))
+  named="$named \"$p\""
+done <<< "$paths"
+
+[ "$count" -eq 0 ] && exit 0
+[ "$total" -le "$MIN_LINES" ] && exit 0
+
+if [ "$count" -eq 1 ]; then
+  subject="File is ${total} lines"
+else
+  subject="These ${count} files are ${total} lines together"
+fi
+
+{
+  echo "${subject} (threshold: ${MIN_LINES}). Reading that into context is what this"
+  echo "plugin exists to avoid. Delegate it to a cheap worker model instead:"
+  echo ""
+  echo "  ${BULK_READ} --question \"<what you need to know>\" --paths${named}"
+  echo ""
+  echo "The files go to the worker, never into your context, so asking again with the"
+  echo "same --paths costs you nothing. If you need exact content to make an edit,"
+  echo "re-read with an offset/limit for just the section you need."
+} >&2
+exit 2

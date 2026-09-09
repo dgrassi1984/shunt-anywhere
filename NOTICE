@@ -1,0 +1,27 @@
+shunt-anywhere
+Copyright 2026 SalehB1
+
+This product includes software derived from the "shunt" plugin in
+spotify/portal-ai-plugins (https://github.com/spotify/portal-ai-plugins),
+Copyright Spotify AB, licensed under the Apache License, Version 2.0.
+
+Files derived from that work, and what changed:
+
+  plugins/shunt/scripts/bulk-read         unchanged but for the library it sources
+  plugins/shunt/scripts/code-write        unchanged but for the library it sources
+  plugins/shunt/scripts/lib/worker.sh     rewritten from scripts/lib/aika.sh: the
+                                          Spotify Portal / AiKA transport is replaced
+                                          by one headless turn on claude, gemini or
+                                          codex, chosen at run time
+  plugins/shunt/hooks/check-file-size     blocks with exit 2 + stderr instead of a
+                                          decision envelope, so Codex and Gemini CLI
+                                          honour it too; handles batch reads and the
+                                          absolute_path argument; names a runnable
+                                          command in the refusal
+  plugins/shunt/hooks/check-bash-read     same refusal change, plus it unwraps a
+                                          `bash -lc "…"` layer and an argv array
+  plugins/shunt/hooks/hooks.json          matcher widened for Codex tool names
+  plugins/shunt/skills/*/SKILL.md         reworded: worker model, not AiKA
+  plugins/shunt/evals/*                   decisions asserted by exit code; transport
+                                          evals stub the three CLIs on PATH; 13 cases
+                                          added for the new input shapes

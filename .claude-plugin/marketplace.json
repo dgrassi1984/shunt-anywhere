@@ -1,0 +1,19 @@
+{
+  "$schema": "https://anthropic.com/claude-code/marketplace.schema.json",
+  "name": "shunt-anywhere",
+  "version": "1.0.0",
+  "description": "Token-saving delegation plugin that works on Claude Code, Codex and Gemini CLI.",
+  "owner": { "name": "SalehB1" },
+  "plugins": [
+    {
+      "name": "shunt",
+      "description": "Saves tokens by shunting I/O-heavy work to a cheap worker model. Hooks block large file reads and redirect to bulk-read/code-write, which run one headless turn on whichever CLI you have: claude, gemini or codex.",
+      "version": "1.0.0",
+      "author": { "name": "SalehB1" },
+      "homepage": "https://github.com/SalehB1/shunt-anywhere",
+      "repository": "https://github.com/SalehB1/shunt-anywhere",
+      "source": "./plugins/shunt",
+      "category": "developer-tools"
+    }
+  ]
+}
