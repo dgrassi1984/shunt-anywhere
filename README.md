@@ -1,5 +1,16 @@
 # shunt-anywhere
 
+> **This is a port of Spotify's [`shunt`](https://github.com/spotify/portal-ai-plugins/tree/main/plugins/shunt) plugin.**
+> The idea, the hook design, the two delegation scripts and the worker instructions are
+> Spotify's, from [portal-ai-plugins](https://github.com/spotify/portal-ai-plugins) and the
+> engineering post [Portal by Spotify cut my Claude Code token usage by 90%](https://engineering.atspotify.com/2026/9/portal-by-spotify-cut-my-claude-code-token-usage-by-90).
+> Their worker runs on AiKA in **Portal by Spotify**, a paid enterprise product, so you need a
+> Portal tenant to use it.
+>
+> What this fork changes: the worker is a CLI you already sign into, and the gate works in
+> Claude Code, Codex CLI and Gemini CLI instead of only Claude Code. Most files here are
+> still theirs — [NOTICE](NOTICE) lists the provenance file by file. Apache-2.0, same as upstream.
+
 Your coding agent spends most of its context on I/O, not thinking. Reading one
 1,400-line service file costs ~15,000 tokens of context that you then pay for on
 every subsequent turn of the conversation.
@@ -160,14 +171,13 @@ argv — so a flag typo fails here rather than in production.
 
 ## Credits
 
-A derivative of the [`shunt`
-plugin](https://github.com/spotify/portal-ai-plugins/tree/main/plugins/shunt)
-from Spotify's [portal-ai-plugins](https://github.com/spotify/portal-ai-plugins),
-described in [Portal by Spotify cut my Claude Code token usage by
-90%](https://engineering.atspotify.com/2026/9/portal-by-spotify-cut-my-claude-code-token-usage-by-90).
-The hook design, the two scripts and the mode instructions are theirs. What
-changed here: their worker is Spotify Portal's AiKA, a paid enterprise product;
-this one uses a CLI you already have, and the gate works in three hosts instead
-of one. See [NOTICE](NOTICE) for the file-by-file list.
+Spotify, for the original. `shunt` is theirs: the hook-blocks-a-big-read idea, `bulk-read`
+and `code-write`, the worker instructions, the eval harness and its fixtures. See
+[portal-ai-plugins](https://github.com/spotify/portal-ai-plugins) and [their write-up](https://engineering.atspotify.com/2026/9/portal-by-spotify-cut-my-claude-code-token-usage-by-90).
+
+This fork exists for one reason: upstream needs Portal by Spotify, and most people do not
+have it. The transport was replaced with `claude -p` / `gemini -p` / `codex exec`, and the
+refusal was changed to exit 2 + stderr so Codex and Gemini CLI honour it too. [NOTICE](NOTICE)
+records exactly which files are derived and what changed in each.
 
 Apache-2.0, same as upstream.
