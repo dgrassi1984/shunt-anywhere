@@ -31,6 +31,14 @@ command=$(printf '%s' "$input" | jq -r '
 command=$(printf '%s' "$command" | sed -E "s/^[[:space:]]*(ba|z|k|da)?sh[[:space:]]+-[a-z]*c[[:space:]]+//")
 command=$(printf '%s' "$command" | sed -E "s/^[\"']//; s/[\"']$//")
 
+# Unwrap transparent rtk wrappers: `rtk proxy <cmd>` runs the command raw, so
+# `rtk proxy cat big.py` is a whole-file read into context, and `rtk read
+# <files>` is a filtered cat — the corpus still lands in context. An agent
+# instructed to prefix rtk onto commands would otherwise slip a big read past
+# the gate.
+command=$(printf '%s' "$command" | sed -E "s/^[[:space:]]*rtk[[:space:]]+proxy[[:space:]]+//")
+command=$(printf '%s' "$command" | sed -E "s/^[[:space:]]*rtk[[:space:]]+read([[:space:]])/cat\1/")
+
 # Piped or redirected reads are targeted, not reads into context.
 case "$command" in
   *\|*|*\>*) exit 0 ;;

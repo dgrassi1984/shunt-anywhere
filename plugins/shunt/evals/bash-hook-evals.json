@@ -352,6 +352,74 @@
       },
       "expected_decision": "allow",
       "reason": "without jq the gate cannot parse its input: fail open and warn, never block everything"
+    },
+    {
+      "id": 25,
+      "name": "rtk-proxy-cat-large",
+      "input": {
+        "tool_input": {
+          "command": "rtk proxy cat {{FIXTURES}}/large.txt"
+        }
+      },
+      "fixtures": [
+        {
+          "path": "{{FIXTURES}}/large.txt",
+          "lines": 800
+        }
+      ],
+      "expected_decision": "block",
+      "reason": "rtk proxy runs the command raw, so a prefixed whole-file read is still a whole-file read"
+    },
+    {
+      "id": 26,
+      "name": "rtk-proxy-cat-small",
+      "input": {
+        "tool_input": {
+          "command": "rtk proxy cat {{FIXTURES}}/small.txt"
+        }
+      },
+      "fixtures": [
+        {
+          "path": "{{FIXTURES}}/small.txt",
+          "lines": 100
+        }
+      ],
+      "expected_decision": "allow",
+      "reason": "a small file through rtk proxy is not worth delegating"
+    },
+    {
+      "id": 27,
+      "name": "rtk-proxy-piped",
+      "input": {
+        "tool_input": {
+          "command": "rtk proxy cat {{FIXTURES}}/large.txt | grep x"
+        }
+      },
+      "fixtures": [
+        {
+          "path": "{{FIXTURES}}/large.txt",
+          "lines": 800
+        }
+      ],
+      "expected_decision": "allow",
+      "reason": "an rtk-prefixed piped read is targeted, not a read into context"
+    },
+    {
+      "id": 28,
+      "name": "rtk-read-large",
+      "input": {
+        "tool_input": {
+          "command": "rtk read {{FIXTURES}}/large.txt"
+        }
+      },
+      "fixtures": [
+        {
+          "path": "{{FIXTURES}}/large.txt",
+          "lines": 800
+        }
+      ],
+      "expected_decision": "block",
+      "reason": "rtk read is a filtered cat: the corpus still lands in context, so it is gated"
     }
   ]
 }

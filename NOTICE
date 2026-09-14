@@ -22,7 +22,11 @@ Files derived from that work, and what changed:
                                           absolute_path argument; names a runnable
                                           command in the refusal
   plugins/shunt/hooks/check-bash-read     same refusal change, plus it unwraps a
-                                          `bash -lc "…"` layer and an argv array
+                                          `bash -lc "…"` layer and an argv array;
+                                          a transparent `rtk proxy ` prefix is
+                                          unwrapped and `rtk read` is read as
+                                          cat, so an rtk-instructed agent cannot
+                                          slip a big read past the gate
   plugins/shunt/hooks/hooks.json          matcher widened for Codex tool names
   plugins/shunt/skills/*/SKILL.md         reworded: worker model, not AiKA
   plugins/shunt/evals/*                   decisions asserted by exit code; transport
