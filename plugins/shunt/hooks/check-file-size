@@ -55,6 +55,12 @@ done <<< "$paths"
 [ "$count" -eq 0 ] && exit 0
 [ "$total" -le "$MIN_LINES" ] && exit 0
 
+# Record the block (which gate fired, where) — best effort, and it is not a
+# saving: the agent may delegate, do a targeted read, or nothing. The library
+# is sourced here, on the block path only, so allowed reads pay nothing.
+shunt_lib="$(cd "$(dirname "$0")/../scripts/lib" 2>/dev/null && pwd)/worker.sh"
+[ -f "$shunt_lib" ] && . "$shunt_lib" && shunt_record_gate check-file-size "$total" "$count"
+
 if [ "$count" -eq 1 ]; then
   subject="File is ${total} lines"
 else
@@ -65,7 +71,7 @@ fi
   echo "${subject} (threshold: ${MIN_LINES}). Reading that into context is what this"
   echo "plugin exists to avoid. Delegate it to a cheap worker model instead:"
   echo ""
-  echo "  ${BULK_READ} --question \"<what you need to know>\" --paths${named}"
+  echo "  ${BULK_READ} --via read-gate --question \"<what you need to know>\" --paths${named}"
   echo ""
   echo "The files go to the worker, never into your context, so asking again with the"
   echo "same --paths costs you nothing. If you need exact content to make an edit,"

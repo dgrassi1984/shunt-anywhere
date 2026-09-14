@@ -9,12 +9,14 @@ MODE_NAME="code-writer"
 spec=""
 reference=""
 target=""
+via=""
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
     --spec)      spec="$2"; shift 2 ;;
     --reference) reference="$2"; shift 2 ;;
     --target)    target="$2"; shift 2 ;;
+    --via)       via="$2"; shift 2 ;;
     *)           shift ;;
   esac
 done
@@ -45,11 +47,14 @@ cat "$reference" >> "$message_file"
 
 # --target sends the answer to disk, not to the caller's context — the
 # ledger needs to know which, or it would count tokens it actually saved.
+# --via is the triggering function; see bulk-read.
+via=$(printf '%s' "$via" | tr -cd 'a-zA-Z0-9_-')
 if [ -n "$target" ]; then
   meta=$(printf ',"returned":false,"target":"%s"' "${target//\"/\\\"}")
 else
   meta=",\"returned\":true"
 fi
+[ -n "$via" ] && meta="$meta,\"via\":\"$via\""
 shunt_invoke "$MODE_NAME" "$message_file" "$meta" > "$answer_file" || exit 1
 
 # Strip markdown fences (model sometimes wraps despite instructions)

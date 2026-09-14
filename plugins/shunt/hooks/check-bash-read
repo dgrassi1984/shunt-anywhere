@@ -63,11 +63,16 @@ lines=$(wc -l < "$file_path" 2>/dev/null | tr -d ' ')
 case "$lines" in ''|*[!0-9]*) exit 0 ;; esac
 [ "$lines" -le "$MIN_LINES" ] && exit 0
 
+# Record the block — same contract as the read gate: best effort, not a
+# saving, and sourced on the block path only.
+shunt_lib="$(cd "$(dirname "$0")/../scripts/lib" 2>/dev/null && pwd)/worker.sh"
+[ -f "$shunt_lib" ] && . "$shunt_lib" && shunt_record_gate check-bash-read "$lines" 1
+
 {
   echo "File is ${lines} lines (threshold: ${MIN_LINES}). Reading that into context is what"
   echo "this plugin exists to avoid. Delegate it to a cheap worker model instead:"
   echo ""
-  echo "  ${BULK_READ} --question \"<what you need to know>\" --paths \"${file_path}\""
+  echo "  ${BULK_READ} --via bash-gate --question \"<what you need to know>\" --paths \"${file_path}\""
   echo ""
   echo "The file goes to the worker, never into your context. If you need exact content"
   echo "to make an edit, read just the section you need (sed -n '120,180p')."

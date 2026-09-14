@@ -35,7 +35,7 @@ Measured on this repo's own benchmark suite, with Claude Haiku 4.5 as the worker
 Reproduce it yourself with `bash plugins/shunt/evals/run.sh --benchmark`.
 
 Re-verified on macOS: same 97% total savings, and the offline suite passes
-100/100 cases under macOS's bash 3.2 with no `coreutils` installed.
+105/105 cases under macOS's bash 3.2 with no `coreutils` installed.
 
 ## It runs on whatever you already have
 
@@ -126,7 +126,10 @@ code-write --spec "tests for UserService.deactivate" --reference tests/order.tes
 
 Every call is one shot. Nothing is stored, nothing is replayed. To ask a
 follow-up, ask again with the same `--paths` — the corpus goes to the worker, not
-to you, so re-sending it is free where it matters.
+to you, so re-sending it is free where it matters. `--via <label>` tags the
+triggering function in the savings ledger: the gates hand the agent
+`--via read-gate` or `--via bash-gate`, the skills pass `--via skill`, and a
+call with no label lands under `direct`.
 
 ## Configuration
 
@@ -165,20 +168,26 @@ SHUNT_MIN_LINES=500
 
 Every delegation — success or failure — is appended to a one-line JSON record
 in `~/.local/state/shunt/savings.jsonl` (XDG state dir): tokens in, tokens
-back, worker, model, mode, duration, and whether the answer came back into
-your context or went to disk. Claude Code, Codex CLI, Gemini CLI and DeepSeek
+back, worker, model, mode, duration, whether the answer came back into your
+context or went to disk, and the triggering function — read-gate, bash-gate or
+skill. The gates also record their own refusals as `gate` events, so you can
+see which hook fires where even when the agent answers with a targeted read
+instead of delegating. Claude Code, Codex CLI, Gemini CLI and DeepSeek
 Harness all write the same ledger, so the numbers are all-time across hosts.
 
 ```bash
-scripts/shunt-stats              # calls, tokens kept out of context, by worker/mode
+scripts/shunt-stats              # by harness, trigger, worker, mode; gate blocks
 scripts/shunt-stats --last 20    # the last delegations, raw
 scripts/shunt-stats --json       # the whole ledger
 ```
 
 Kept out of context = what a delegation carried away minus what it brought
 back into your context. A `--target` code-write counts in full — its output
-never entered context — and failed delegations count zero. Point
-`SHUNT_STATS_FILE` at `/dev/null` to keep no ledger at all.
+never entered context — and failed delegations and gate refusals count zero.
+The refusals name `--via read-gate`/`--via bash-gate` in the command they hand
+the agent, and the skills pass `--via skill`, so the by-trigger numbers say
+which path actually saves you tokens. Point `SHUNT_STATS_FILE` at `/dev/null`
+to keep no ledger at all.
 
 ## What it does not delegate
 
@@ -202,7 +211,7 @@ the gate.
 ## Tests
 
 ```bash
-bash plugins/shunt/evals/run.sh              # 100 cases, offline, no worker needed
+bash plugins/shunt/evals/run.sh              # 105 cases, offline, no worker needed
 bash plugins/shunt/evals/run.sh --benchmark  # also re-measures savings (needs a worker)
 ```
 

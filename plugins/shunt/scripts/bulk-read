@@ -8,11 +8,13 @@ MODE_NAME="bulk-reader"
 
 question=""
 paths=()
+via=""
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
     --question) question="$2"; shift 2 ;;
     --paths)    shift; while [[ $# -gt 0 && ! "$1" =~ ^-- ]]; do paths+=("$1"); shift; done ;;
+    --via)      via="$2"; shift 2 ;;
     *)          shift ;;
   esac
 done
@@ -52,8 +54,12 @@ done
 printf 'Question: %s\n' "$question" >> "$message_file"
 
 # The answer returns to the caller's context, so the ledger records it as
-# returned; every path shipped is worth a number in the ledger.
-meta=$(printf ',"paths":%d,"returned":true' "${#paths[@]}")
+# returned; every path shipped is worth a number in the ledger. --via is the
+# triggering function — read-gate, bash-gate, skill — and lands in the ledger
+# so shunt-stats can group savings by it; anything unsafe for JSON is dropped.
+via=$(printf '%s' "$via" | tr -cd 'a-zA-Z0-9_-')
+meta=",\"paths\":${#paths[@]},\"returned\":true"
+[ -n "$via" ] && meta="$meta,\"via\":\"$via\""
 answer=$(shunt_invoke "$MODE_NAME" "$message_file" "$meta") || exit 1
 printf '%s\n' "$answer"
 

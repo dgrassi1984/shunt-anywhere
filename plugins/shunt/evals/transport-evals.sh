@@ -153,6 +153,8 @@ check "model-override-honoured" "yes" "$(argv_pair claude '--model' 'claude-sonn
 shunt_invoke bulk-reader "$message_file" ',"paths":2,"returned":true' >/dev/null
 check "stats-ledger-mode" "bulk-reader" "$(jq -rs '.[0].mode // empty' "$SHUNT_STATS_FILE")" \
   "every delegation is recorded with its mode"
+check "stats-delegation-kind" "delegation" "$(jq -rs '.[0].kind // empty' "$SHUNT_STATS_FILE")" \
+  "delegation rows are typed, so gate events can never count as savings"
 check "stats-ledger-tokens" "yes" \
   "$(jq -rs '.[0] | if (.input_tokens > 0 and .output_tokens > 0) then "yes" else "no" end' "$SHUNT_STATS_FILE")" \
   "tokens in and out are in the ledger"
@@ -173,10 +175,25 @@ check "stats-disk-answer-saves-input" "$(jq -rs '.[0].input_tokens' "$SHUNT_STAT
   "$(shunt_saved_total)" \
   "an answer that went to disk counts in full, not net of its size"
 
-# Last, because it appends a successful row nothing else asserts against.
+# Last, because they append successful rows nothing else asserts against.
 check "stats-ledger-dsh-host" "dsh" \
   "$(DSH_SESSION_ID=eval shunt_invoke bulk-reader "$message_file" >/dev/null; jq -rs '.[-1].host // empty' "$SHUNT_STATS_FILE")" \
   "a delegation from DeepSeek Harness is recorded under its own host, not shell"
+check "stats-ledger-via" "read-gate" \
+  "$(shunt_invoke bulk-reader "$message_file" ',"via":"read-gate"' >/dev/null; jq -rs '.[-1].via // empty' "$SHUNT_STATS_FILE")" \
+  "the triggering function travels with the record"
+
+# The summary must group by harness and trigger. This is also the guard for a
+# jq precedence trap: pipe binds looser than comma, so an unparenthesized
+# `.[0] | expr | tostring, length` inside an array absorbs the comma and
+# length measures the group NAME (len "dsh"=3), not the group.
+stats_out=$(SHUNT_STATS_FILE="$SHUNT_STATS_FILE" "$PLUGIN_DIR/scripts/shunt-stats" 2>/dev/null)
+check "stats-groups-by-harness" "yes" \
+  "$(printf '%s\n' "$stats_out" | grep -q '^  dsh ' && echo yes || echo no)" \
+  "shunt-stats breaks savings out per harness"
+check "stats-groups-by-trigger" "yes" \
+  "$(printf '%s\n' "$stats_out" | grep -q '^  read-gate ' && echo yes || echo no)" \
+  "shunt-stats breaks savings out per triggering function"
 
 # ── gemini transport ──
 

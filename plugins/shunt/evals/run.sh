@@ -343,8 +343,34 @@ run_benchmarks() {
 
 # ── Main ──
 
+# The gate hooks now record their blocks to the savings ledger: keep the eval
+# suite's blocks out of the real one, and assert they land here.
+SAVED_STATS="${SHUNT_STATS_FILE:-}"
+GATE_STATS="$(mktemp)"
+export SHUNT_STATS_FILE="$GATE_STATS"
+
 run_suite "$SCRIPT_DIR/../hooks/check-file-size" "$SCRIPT_DIR/hook-evals.json" "Read hook (check-file-size)"
 run_suite "$SCRIPT_DIR/../hooks/check-bash-read" "$SCRIPT_DIR/bash-hook-evals.json" "Bash hook (check-bash-read)"
+
+echo ""
+echo "Gate ledger (hook blocks recorded, isolated from the real one)"
+echo "────────────────────────────────────────────────────────────────"
+gate_blocks=$(jq -s '[.[] | select(.kind == "gate")] | length' "$GATE_STATS" 2>/dev/null || printf '0')
+case "$gate_blocks" in
+  ''|*[!0-9]*|0)
+    printf "  FAIL  %-30s expected gate blocks in the ledger, got %s\n" "gate-blocks-recorded" "$gate_blocks"
+    FAILED=$((FAILED + 1)); TOTAL=$((TOTAL + 1)) ;;
+  *)
+    printf "  PASS  %-30s %s\n" "gate-blocks-recorded" "$gate_blocks blocks by the gate hooks landed in the ledger"
+    PASSED=$((PASSED + 1)); TOTAL=$((TOTAL + 1)) ;;
+esac
+rm -f "$GATE_STATS"
+if [ -n "$SAVED_STATS" ]; then
+  export SHUNT_STATS_FILE="$SAVED_STATS"
+else
+  unset SHUNT_STATS_FILE
+fi
+
 run_transport_suite
 
 echo ""

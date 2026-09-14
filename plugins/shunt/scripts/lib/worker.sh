@@ -140,35 +140,56 @@ shunt_timeout() {
   "$@"
 }
 
+# Which harness is calling. The vars survive into the worker subprocess only
+# as unset by each transport, so this reads the caller's environment.
+shunt_detect_host() {
+  local host=shell
+  [ -n "${CLAUDECODE:-}" ] && host=claude-code
+  [ -n "${GEMINI_CLI:-}${GEMINI_SYSTEM_MD:-}" ] && host=gemini-cli
+  [ -n "${DSH_SESSION_ID:-}${DSH_SHELL:-}" ] && [ "$host" = shell ] && host=dsh
+  [ -n "${CODEX_HOME:-}" ] && [ "$host" = shell ] && host=codex
+  printf '%s' "$host"
+}
+
 # Append one delegation to the savings ledger. Best effort only: recording
 # must never fail a delegation, so every error path here is silent.
 #   $1 mode, $2 message file, $3 answer text, $4 rc, $5 seconds, $6 extra JSON
 shunt_record() {
   local mode="$1" message_file="$2" text="$3" rc="$4" secs="$5" meta="$6"
-  local dir host in_tok out_tok model
+  local dir in_tok out_tok model
   dir="$(dirname "$SHUNT_STATS_FILE")"
   mkdir -p "$dir" 2>/dev/null || return 0
   in_tok=$(( $(wc -c < "$message_file" | tr -d ' ') / 4 ))
   out_tok=$(( ${#text} / 4 ))
-  host=shell
-  [ -n "${CLAUDECODE:-}" ] && host=claude-code
-  [ -n "${GEMINI_CLI:-}${GEMINI_SYSTEM_MD:-}" ] && host=gemini-cli
-  [ -n "${DSH_SESSION_ID:-}${DSH_SHELL:-}" ] && [ "$host" = shell ] && host=dsh
-  [ -n "${CODEX_HOME:-}" ] && [ "$host" = shell ] && host=codex
   model="${SHUNT_WORKER_MODEL-$(shunt_default_model "$SHUNT_WORKER")}"
-  printf '{"ts":"%s","host":"%s","worker":"%s","model":"%s","mode":"%s","input_tokens":%d,"output_tokens":%d,"secs":%d,"rc":%d%s}\n' \
-    "$(date -u +%Y-%m-%dT%H:%M:%SZ)" "$host" "$SHUNT_WORKER" "$model" "$mode" \
+  printf '{"ts":"%s","kind":"delegation","host":"%s","worker":"%s","model":"%s","mode":"%s","input_tokens":%d,"output_tokens":%d,"secs":%d,"rc":%d%s}\n' \
+    "$(date -u +%Y-%m-%dT%H:%M:%SZ)" "$(shunt_detect_host)" "$SHUNT_WORKER" "$model" "$mode" \
     "$in_tok" "$out_tok" "$secs" "$rc" "$meta" \
     >> "$SHUNT_STATS_FILE" 2>/dev/null || true
 }
 
+# Append one gate event: a hook refused a read. Not a saving — the agent may
+# delegate, do a targeted read, or nothing — but it shows which triggering
+# function fires where. Best effort, like every ledger write. The gate hooks
+# source this library on their block path only, so allowed reads pay nothing.
+#   $1 hook name, $2 lines refused, $3 files refused
+shunt_record_gate() {
+  local hook="$1" lines="$2" files="$3"
+  local dir
+  dir="$(dirname "$SHUNT_STATS_FILE")"
+  mkdir -p "$dir" 2>/dev/null || return 0
+  printf '{"ts":"%s","kind":"gate","host":"%s","hook":"%s","files":%d,"lines":%d}\n' \
+    "$(date -u +%Y-%m-%dT%H:%M:%SZ)" "$(shunt_detect_host)" "$hook" "$files" "$lines" \
+    >> "$SHUNT_STATS_FILE" 2>/dev/null || true
+}
+
 # Tokens kept out of context, all time: what a delegation carried away minus
-# what it brought back, successes with an answer only. Absent, empty or
-# unreadable ledger reads as zero.
+# what it brought back, successes with an answer only. Gate events are not
+# savings. Absent, empty or unreadable ledger reads as zero.
 shunt_saved_total() {
   command -v jq >/dev/null 2>&1 || { printf '0'; return 0; }
   [ -s "$SHUNT_STATS_FILE" ] || { printf '0'; return 0; }
-  jq -rs '[.[] | select(.rc == 0 and .output_tokens > 0)
+  jq -rs '[.[] | select((.kind // "delegation") == "delegation" and .rc == 0 and .output_tokens > 0)
           | .input_tokens - (if (.returned == false) then 0 else .output_tokens end)]
           | add // 0' "$SHUNT_STATS_FILE" 2>/dev/null || printf '0'
 }

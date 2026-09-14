@@ -12,7 +12,9 @@ Files derived from that work, and what changed:
   plugins/shunt/scripts/code-write        unchanged but for the library it sources
                                           and its token-usage line
   plugins/shunt/scripts/shunt-stats       new in this fork: summarizes the savings
-                                          ledger the delegations record
+                                          ledger — per harness, per triggering
+                                          function, per worker and mode, plus the
+                                          gate blocks that never became delegations
   install.sh                             new in this fork: installs into Claude
                                           Code, Codex CLI, Gemini CLI and DeepSeek
                                           Harness, pins per-host workers, and can
@@ -31,20 +33,26 @@ Files derived from that work, and what changed:
                                           loading the account's plugins and its
                                           claude.ai connector MCP tool schemas;
                                           every delegation is recorded in a JSONL
-                                          savings ledger (SHUNT_STATS_FILE), under
-                                          host dsh when DSH_SESSION_ID/DSH_SHELL
-                                          say the call came from DeepSeek Harness
+                                          savings ledger (SHUNT_STATS_FILE) with a
+                                          kind (delegation) and, when passed, the
+                                          --via triggering function, under host dsh
+                                          when DSH_SESSION_ID/DSH_SHELL say the
+                                          call came from DeepSeek Harness
   plugins/shunt/hooks/check-file-size     blocks with exit 2 + stderr instead of a
                                           decision envelope, so Codex and Gemini CLI
                                           honour it too; handles batch reads and the
                                           absolute_path argument; names a runnable
-                                          command in the refusal
+                                          command in the refusal; the refusal tags
+                                          --via read-gate and the block is recorded
+                                          as a gate event in the savings ledger
   plugins/shunt/hooks/check-bash-read     same refusal change, plus it unwraps a
                                           `bash -lc "…"` layer and an argv array;
                                           a transparent `rtk proxy ` prefix is
                                           unwrapped and `rtk read` is read as
                                           cat, so an rtk-instructed agent cannot
-                                          slip a big read past the gate
+                                          slip a big read past the gate; the refusal
+                                          tags --via bash-gate and the block is
+                                          recorded as a gate event
   plugins/shunt/hooks/hooks.json          matcher widened for Codex tool names
   plugins/shunt/skills/*/SKILL.md         reworded: worker model, not AiKA
   plugins/shunt/evals/*                   decisions asserted by exit code; transport

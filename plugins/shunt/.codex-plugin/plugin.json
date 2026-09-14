@@ -1,7 +1,7 @@
 {
   "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
   "name": "shunt",
-  "version": "1.0.5",
+  "version": "1.0.6",
   "description": "Saves tokens by shunting I/O-heavy work to a cheap worker model. Hooks block large file reads and redirect to bulk-read/code-write, which run one headless turn on whichever CLI you have: claude, gemini or codex. Works in Claude Code, Codex, Gemini CLI and DeepSeek Harness, and records every delegation in a savings ledger.",
   "author": { "name": "SalehB1" },
   "homepage": "https://github.com/SalehB1/shunt-anywhere",

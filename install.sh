@@ -340,7 +340,7 @@ Instead of reading a large file into context, ask a cheap worker CLI and get
 bullets back:
 
 \`\`\`bash
-$s/bulk-read --question "<what you need to know>" --paths <file1> [<file2> ...]
+$s/bulk-read --via skill --question "<what you need to know>" --paths <file1> [<file2> ...]
 \`\`\`
 
 Each call is independent. A follow-up re-sends the same --paths — the corpus
@@ -367,10 +367,10 @@ description: "Delegate boilerplate code generation to a cheap worker CLI. Use fo
 
 \`\`\`bash
 # write directly to a target file
-$s/code-write --spec "<what to generate>" --reference <reference-file> --target <output-path>
+$s/code-write --via skill --spec "<what to generate>" --reference <reference-file> --target <output-path>
 
 # or to stdout
-$s/code-write --spec "<what to generate>" --reference <reference-file>
+$s/code-write --via skill --spec "<what to generate>" --reference <reference-file>
 \`\`\`
 
 --reference is required: without a file to match, the worker writes plausible

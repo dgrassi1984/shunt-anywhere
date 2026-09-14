@@ -4,7 +4,7 @@ description: "Delegate bulk file reading to a cheap worker model. Use when you n
 ---
 
 ```bash
-"${CLAUDE_PLUGIN_ROOT:-$PLUGIN_ROOT}/scripts/bulk-read" --question "<question>" --paths <file1> [<file2> ...]
+"${CLAUDE_PLUGIN_ROOT:-$PLUGIN_ROOT}/scripts/bulk-read" --via skill --question "<question>" --paths <file1> [<file2> ...]
 ```
 
 Each call is independent. To ask a follow-up, ask again with the same `--paths` — the files
