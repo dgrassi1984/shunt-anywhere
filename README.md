@@ -33,7 +33,7 @@ Measured on this repo's own benchmark suite, with Claude Haiku 4.5 as the worker
 Reproduce it yourself with `bash plugins/shunt/evals/run.sh --benchmark`.
 
 Re-verified on macOS: same 97% total savings, and the offline suite passes
-99/99 cases under macOS's bash 3.2 with no `coreutils` installed.
+100/100 cases under macOS's bash 3.2 with no `coreutils` installed.
 
 ## It runs on whatever you already have
 
@@ -49,9 +49,9 @@ key, no SaaS account, no second bill.
 Pick one with `SHUNT_WORKER`. Left unset, shunt prefers the host it is running
 inside, then the first of `claude`, `gemini`, `codex` on your `PATH`.
 
-The gate itself works in all three hosts too, because a hook that exits 2 with
-its reason on stderr is a refusal Claude Code, Codex CLI and Gemini CLI all
-honour.
+The gate itself works in Claude Code, Codex CLI and Gemini CLI, because a hook
+that exits 2 with its reason on stderr is a refusal all three honour — and in
+DeepSeek Harness through its `dsh-hooks-claude-code` bridge.
 
 ## Install
 
@@ -60,6 +60,18 @@ Needs [`jq`](https://jqlang.org) (`apt install jq` / `brew install jq`).
 macOS works out of the box: the worker runs under GNU `timeout` where present,
 Homebrew `gtimeout` where installed, and otherwise a bundled perl watchdog —
 no `coreutils` install needed on a Mac.
+
+All hosts at once, from a checkout or piped:
+
+```bash
+bash install.sh
+curl -fsSL https://raw.githubusercontent.com/dgrassi1984/shunt-anywhere/main/install.sh | bash
+```
+
+It installs into claude, codex, gemini and dsh as it finds them, pins each
+host's worker where a pin is needed, and is safe to re-run. `--claude --codex
+--gemini --dsh` limit the hosts, `--worker` changes the pin, `--no-pin` touches
+no config.
 
 **Claude Code**
 
@@ -80,6 +92,15 @@ claude plugin install shunt@shunt-anywhere
 ```bash
 gemini extensions install https://github.com/SalehB1/shunt-anywhere
 ```
+
+**DeepSeek Harness** — `install.sh --dsh` writes the `bulk-reader` and
+`code-writer` skills into `~/.dsh/skills` and the worker scripts into
+`~/.dsh/shunt`. DSH's skill watcher hot-loads them, running session included.
+That is soft enforcement: the agent is taught to delegate, nothing blocks a
+read. The hard gate is DSH's own `dsh-hooks-claude-code` bridge, composed with
+`--dsh-gate` — it reads the gate hooks through the bridge and takes effect on
+the next `dsh` start; the wiring it writes (a pnpm dependency and a marked
+block in the profile's `cordis.patch.yml`) is one delete away.
 
 Then, in a new session, ask it to read a file over 350 lines. You should see the
 refusal, and then a `bulk-read` call.
@@ -179,7 +200,7 @@ the gate.
 ## Tests
 
 ```bash
-bash plugins/shunt/evals/run.sh              # 99 cases, offline, no worker needed
+bash plugins/shunt/evals/run.sh              # 100 cases, offline, no worker needed
 bash plugins/shunt/evals/run.sh --benchmark  # also re-measures savings (needs a worker)
 ```
 

@@ -173,6 +173,11 @@ check "stats-disk-answer-saves-input" "$(jq -rs '.[0].input_tokens' "$SHUNT_STAT
   "$(shunt_saved_total)" \
   "an answer that went to disk counts in full, not net of its size"
 
+# Last, because it appends a successful row nothing else asserts against.
+check "stats-ledger-dsh-host" "dsh" \
+  "$(DSH_SESSION_ID=eval shunt_invoke bulk-reader "$message_file" >/dev/null; jq -rs '.[-1].host // empty' "$SHUNT_STATS_FILE")" \
+  "a delegation from DeepSeek Harness is recorded under its own host, not shell"
+
 # ── gemini transport ──
 
 SHUNT_WORKER=gemini

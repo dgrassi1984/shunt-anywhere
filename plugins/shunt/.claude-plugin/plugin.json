@@ -1,7 +1,7 @@
 {
   "name": "shunt",
   "displayName": "Shunt",
-  "version": "1.0.3",
+  "version": "1.0.4",
   "description": "Saves tokens by shunting I/O-heavy work to a cheap worker model. Hooks block large file reads and redirect to bulk-read/code-write, which run one headless turn on whichever CLI you have: claude, gemini or codex.",
   "author": { "name": "SalehB1" },
   "homepage": "https://github.com/SalehB1/shunt-anywhere",

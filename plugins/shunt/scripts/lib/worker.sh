@@ -153,6 +153,7 @@ shunt_record() {
   host=shell
   [ -n "${CLAUDECODE:-}" ] && host=claude-code
   [ -n "${GEMINI_CLI:-}${GEMINI_SYSTEM_MD:-}" ] && host=gemini-cli
+  [ -n "${DSH_SESSION_ID:-}${DSH_SHELL:-}" ] && [ "$host" = shell ] && host=dsh
   [ -n "${CODEX_HOME:-}" ] && [ "$host" = shell ] && host=codex
   model="${SHUNT_WORKER_MODEL-$(shunt_default_model "$SHUNT_WORKER")}"
   printf '{"ts":"%s","host":"%s","worker":"%s","model":"%s","mode":"%s","input_tokens":%d,"output_tokens":%d,"secs":%d,"rc":%d%s}\n' \

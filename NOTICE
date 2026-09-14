@@ -13,6 +13,11 @@ Files derived from that work, and what changed:
                                           and its token-usage line
   plugins/shunt/scripts/shunt-stats       new in this fork: summarizes the savings
                                           ledger the delegations record
+  install.sh                             new in this fork: installs into Claude
+                                          Code, Codex CLI, Gemini CLI and DeepSeek
+                                          Harness, pins per-host workers, and can
+                                          compose DSH's dsh-hooks-claude-code
+                                          bridge for the hard read gate
   plugins/shunt/scripts/lib/worker.sh     rewritten from scripts/lib/aika.sh: the
                                           Spotify Portal / AiKA transport is replaced
                                           by one headless turn on claude, gemini or
@@ -26,7 +31,9 @@ Files derived from that work, and what changed:
                                           loading the account's plugins and its
                                           claude.ai connector MCP tool schemas;
                                           every delegation is recorded in a JSONL
-                                          savings ledger (SHUNT_STATS_FILE)
+                                          savings ledger (SHUNT_STATS_FILE), under
+                                          host dsh when DSH_SESSION_ID/DSH_SHELL
+                                          say the call came from DeepSeek Harness
   plugins/shunt/hooks/check-file-size     blocks with exit 2 + stderr instead of a
                                           decision envelope, so Codex and Gemini CLI
                                           honour it too; handles batch reads and the
