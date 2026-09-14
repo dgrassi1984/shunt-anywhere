@@ -464,8 +464,7 @@ if [ "$want_dsh"    = true ]; then install_dsh    || failures=$((failures + 1));
 [ -n "$clone_dir" ] && rm -rf "$clone_dir"
 
 say "Ledger and stats: ~/.local/state/shunt/savings.jsonl — read it with the plugin's shunt-stats"
-say "Uninstall: claude plugin uninstall $PLUGIN@$MARKETPLACE · codex plugin remove $PLUGIN@$MARKETPLACE ·"
-say "           gemini extensions uninstall shunt · dsh: rm -rf ~/.dsh/shunt ~/.dsh/skills/bulk-reader ~/.dsh/skills/code-writer"
+say "Uninstall: bash uninstall.sh — removes every host, keeps the ledger (--purge-ledger to drop it)"
 
 if [ "$failures" -gt 0 ]; then
   err "$failures host install(s) failed."

@@ -20,6 +20,13 @@ Files derived from that work, and what changed:
                                           Harness, pins per-host workers, and can
                                           compose DSH's dsh-hooks-claude-code
                                           bridge for the hard read gate
+  uninstall.sh                           new in this fork: removes everything
+                                          install.sh deployed — plugins,
+                                          marketplaces, SHUNT_* config lines,
+                                          the DSH gate wiring and skills — and
+                                          keeps the savings ledger and every
+                                          backup unless --purge-ledger says
+                                          otherwise
   plugins/shunt/scripts/lib/worker.sh     rewritten from scripts/lib/aika.sh: the
                                           Spotify Portal / AiKA transport is replaced
                                           by one headless turn on claude, gemini or

@@ -75,6 +75,16 @@ host's worker where a pin is needed, and is safe to re-run. `--claude --codex
 --gemini --dsh` limit the hosts, `--worker` changes the pin, `--no-pin` touches
 no config.
 
+Its counterpart removes everything it deployed — plugins, marketplaces,
+`SHUNT_*` config lines, the DSH gate wiring and skills — and keeps the savings
+ledger and every backup unless told otherwise:
+
+```bash
+bash uninstall.sh --dry-run   # the plan, nothing touched
+bash uninstall.sh             # prompts; a piped run needs --yes
+curl -fsSL https://raw.githubusercontent.com/dgrassi1984/shunt-anywhere/main/uninstall.sh | bash -s -- --yes
+```
+
 **Claude Code**
 
 ```bash
