@@ -2,7 +2,7 @@
   "$schema": "https://anthropic.com/claude-code/marketplace.schema.json",
   "name": "shunt-anywhere",
   "version": "1.0.0",
-  "description": "Token-saving delegation plugin that works on Claude Code, Codex and Gemini CLI.",
+  "description": "Token-saving delegation plugin that works on Claude Code, Codex, Gemini CLI and DeepSeek Harness.",
   "owner": { "name": "SalehB1" },
   "plugins": [
     {
