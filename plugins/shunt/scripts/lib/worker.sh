@@ -25,6 +25,12 @@ SHUNT_MAX_PAYLOAD_BYTES="${SHUNT_MAX_PAYLOAD_BYTES:-600000}"
 # Ceiling for one delegation; large generations can take a while.
 SHUNT_TIMEOUT_SECONDS="${SHUNT_TIMEOUT_SECONDS:-180}"
 
+# The savings ledger: one JSON line per delegation, successes and failures
+# alike, so shunt-stats can say what this plugin kept out of context. All
+# three hosts write the same file; point SHUNT_STATS_FILE at /dev/null to
+# keep no ledger at all.
+SHUNT_STATS_FILE="${SHUNT_STATS_FILE:-${XDG_STATE_HOME:-$HOME/.local/state}/shunt/savings.jsonl}"
+
 # Which CLI runs the worker. An explicit SHUNT_WORKER wins; otherwise prefer the
 # host we are running inside, then the first CLI on PATH.
 shunt_pick_worker() {
@@ -134,6 +140,38 @@ shunt_timeout() {
   "$@"
 }
 
+# Append one delegation to the savings ledger. Best effort only: recording
+# must never fail a delegation, so every error path here is silent.
+#   $1 mode, $2 message file, $3 answer text, $4 rc, $5 seconds, $6 extra JSON
+shunt_record() {
+  local mode="$1" message_file="$2" text="$3" rc="$4" secs="$5" meta="$6"
+  local dir host in_tok out_tok model
+  dir="$(dirname "$SHUNT_STATS_FILE")"
+  mkdir -p "$dir" 2>/dev/null || return 0
+  in_tok=$(( $(wc -c < "$message_file" | tr -d ' ') / 4 ))
+  out_tok=$(( ${#text} / 4 ))
+  host=shell
+  [ -n "${CLAUDECODE:-}" ] && host=claude-code
+  [ -n "${GEMINI_CLI:-}${GEMINI_SYSTEM_MD:-}" ] && host=gemini-cli
+  [ -n "${CODEX_HOME:-}" ] && [ "$host" = shell ] && host=codex
+  model="${SHUNT_WORKER_MODEL-$(shunt_default_model "$SHUNT_WORKER")}"
+  printf '{"ts":"%s","host":"%s","worker":"%s","model":"%s","mode":"%s","input_tokens":%d,"output_tokens":%d,"secs":%d,"rc":%d%s}\n' \
+    "$(date -u +%Y-%m-%dT%H:%M:%SZ)" "$host" "$SHUNT_WORKER" "$model" "$mode" \
+    "$in_tok" "$out_tok" "$secs" "$rc" "$meta" \
+    >> "$SHUNT_STATS_FILE" 2>/dev/null || true
+}
+
+# Tokens kept out of context, all time: what a delegation carried away minus
+# what it brought back, successes with an answer only. Absent, empty or
+# unreadable ledger reads as zero.
+shunt_saved_total() {
+  command -v jq >/dev/null 2>&1 || { printf '0'; return 0; }
+  [ -s "$SHUNT_STATS_FILE" ] || { printf '0'; return 0; }
+  jq -rs '[.[] | select(.rc == 0 and .output_tokens > 0)
+          | .input_tokens - (if (.returned == false) then 0 else .output_tokens end)]
+          | add // 0' "$SHUNT_STATS_FILE" 2>/dev/null || printf '0'
+}
+
 # One headless turn on the chosen CLI. $1 is the system prompt, the message
 # arrives on stdin, the answer goes to stdout. The transport evals stub this.
 shunt_worker() {
@@ -188,9 +226,10 @@ shunt_worker() {
 # Runs one ephemeral turn against a mode and prints the answer.
 #   $1 mode name (bulk-reader | code-writer)
 #   $2 file holding the message
+#   $3 extra ledger fields, a JSON fragment like ,"paths":2,"returned":true
 shunt_invoke() {
-  local mode_name="$1" message_file="$2"
-  local system bytes text rc
+  local mode_name="$1" message_file="$2" meta="${3:-}"
+  local system bytes text rc t0 secs
 
   if ! system=$(shunt_mode_prompt "$mode_name"); then
     echo "Error: unknown mode \"$mode_name\" (known: bulk-reader, code-writer)." >&2
@@ -205,8 +244,11 @@ shunt_invoke() {
     return 1
   fi
 
+  t0=$(date +%s)
   text=$(shunt_worker "$system" < "$message_file")
   rc=$?
+  secs=$(( $(date +%s) - t0 ))
+  shunt_record "$mode_name" "$message_file" "$text" "$rc" "$secs" "$meta"
 
   if [ "$rc" -eq 124 ]; then
     echo "Error: the $SHUNT_WORKER worker exceeded ${SHUNT_TIMEOUT_SECONDS}s." >&2

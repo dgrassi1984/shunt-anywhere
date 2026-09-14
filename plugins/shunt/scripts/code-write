@@ -43,7 +43,14 @@ shunt_tmpfile answer_file || exit 1
 printf 'Spec: %s\n\nReference:\n' "$spec" > "$message_file"
 cat "$reference" >> "$message_file"
 
-shunt_invoke "$MODE_NAME" "$message_file" > "$answer_file" || exit 1
+# --target sends the answer to disk, not to the caller's context — the
+# ledger needs to know which, or it would count tokens it actually saved.
+if [ -n "$target" ]; then
+  meta=$(printf ',"returned":false,"target":"%s"' "${target//\"/\\\"}")
+else
+  meta=",\"returned\":true"
+fi
+shunt_invoke "$MODE_NAME" "$message_file" "$meta" > "$answer_file" || exit 1
 
 # Strip markdown fences (model sometimes wraps despite instructions)
 clean=$(sed '/^```/d' "$answer_file")
@@ -57,4 +64,4 @@ else
 fi
 
 # Token usage to stderr
-echo "[shunt: delegated to $MODE_NAME]" >&2
+echo "[shunt: delegated to $MODE_NAME | $(shunt_saved_total) kept out of context all-time]" >&2

@@ -14,3 +14,6 @@ Verify specific line numbers or exact values before using them in edits.
 
 If neither variable is set in your shell, the refusal from the read gate names the
 absolute path to the script.
+
+Every call is recorded in the savings ledger; `scripts/shunt-stats` in this
+plugin summarizes what shunt has kept out of your context.

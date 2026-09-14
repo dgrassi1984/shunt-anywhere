@@ -8,7 +8,11 @@ Copyright Spotify AB, licensed under the Apache License, Version 2.0.
 Files derived from that work, and what changed:
 
   plugins/shunt/scripts/bulk-read         unchanged but for the library it sources
+                                          and its token-usage line
   plugins/shunt/scripts/code-write        unchanged but for the library it sources
+                                          and its token-usage line
+  plugins/shunt/scripts/shunt-stats       new in this fork: summarizes the savings
+                                          ledger the delegations record
   plugins/shunt/scripts/lib/worker.sh     rewritten from scripts/lib/aika.sh: the
                                           Spotify Portal / AiKA transport is replaced
                                           by one headless turn on claude, gemini or
@@ -20,7 +24,9 @@ Files derived from that work, and what changed:
                                           --strict-mcp-config, because the empty
                                           scope string is invalid and falls back to
                                           loading the account's plugins and its
-                                          claude.ai connector MCP tool schemas
+                                          claude.ai connector MCP tool schemas;
+                                          every delegation is recorded in a JSONL
+                                          savings ledger (SHUNT_STATS_FILE)
   plugins/shunt/hooks/check-file-size     blocks with exit 2 + stderr instead of a
                                           decision envelope, so Codex and Gemini CLI
                                           honour it too; handles batch reads and the
@@ -41,4 +47,5 @@ Files derived from that work, and what changed:
                                           statement in $( ), which macOS bash 3.2
                                           cannot parse; a failed benchmark delegation
                                           is reported as a failed row, never as a
-                                          0-token answer
+                                          0-token answer; the ledger is redirected
+                                          to a temp file and its records asserted

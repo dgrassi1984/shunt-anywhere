@@ -33,7 +33,7 @@ Measured on this repo's own benchmark suite, with Claude Haiku 4.5 as the worker
 Reproduce it yourself with `bash plugins/shunt/evals/run.sh --benchmark`.
 
 Re-verified on macOS: same 97% total savings, and the offline suite passes
-93/93 cases under macOS's bash 3.2 with no `coreutils` installed.
+99/99 cases under macOS's bash 3.2 with no `coreutils` installed.
 
 ## It runs on whatever you already have
 
@@ -116,6 +116,7 @@ Environment variables, all optional:
 | `SHUNT_MIN_LINES` | `350` | line count above which a read is refused |
 | `SHUNT_TIMEOUT_SECONDS` | `180` | ceiling for one delegation |
 | `SHUNT_MAX_PAYLOAD_BYTES` | `600000` | refuse a corpus bigger than this (~150k tokens) |
+| `SHUNT_STATS_FILE` | XDG state path | savings ledger; point at `/dev/null` to keep none |
 
 Where to put them:
 
@@ -136,6 +137,25 @@ SHUNT_MIN_LINES = "500"
 SHUNT_WORKER=gemini
 SHUNT_MIN_LINES=500
 ```
+
+## Savings ledger
+
+Every delegation — success or failure — is appended to a one-line JSON record
+in `~/.local/state/shunt/savings.jsonl` (XDG state dir): tokens in, tokens
+back, worker, model, mode, duration, and whether the answer came back into
+your context or went to disk. Claude Code, Codex CLI and Gemini CLI all write
+the same ledger, so the numbers are all-time across hosts.
+
+```bash
+scripts/shunt-stats              # calls, tokens kept out of context, by worker/mode
+scripts/shunt-stats --last 20    # the last delegations, raw
+scripts/shunt-stats --json       # the whole ledger
+```
+
+Kept out of context = what a delegation carried away minus what it brought
+back into your context. A `--target` code-write counts in full — its output
+never entered context — and failed delegations count zero. Point
+`SHUNT_STATS_FILE` at `/dev/null` to keep no ledger at all.
 
 ## What it does not delegate
 
@@ -159,7 +179,7 @@ the gate.
 ## Tests
 
 ```bash
-bash plugins/shunt/evals/run.sh              # 93 cases, offline, no worker needed
+bash plugins/shunt/evals/run.sh              # 99 cases, offline, no worker needed
 bash plugins/shunt/evals/run.sh --benchmark  # also re-measures savings (needs a worker)
 ```
 

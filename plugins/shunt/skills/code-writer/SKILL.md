@@ -15,3 +15,6 @@ Each call is independent. To build on what was just generated, pass that file as
 `--reference` for the next call.
 
 Review the output and make surgical edits for the ~5-20% that needs your own judgment.
+
+Every call is recorded in the savings ledger; `scripts/shunt-stats` in this
+plugin summarizes what shunt has kept out of your context.

@@ -51,8 +51,12 @@ for path in "${paths[@]}"; do
 done
 printf 'Question: %s\n' "$question" >> "$message_file"
 
-shunt_invoke "$MODE_NAME" "$message_file" || exit 1
+# The answer returns to the caller's context, so the ledger records it as
+# returned; every path shipped is worth a number in the ledger.
+meta=$(printf ',"paths":%d,"returned":true' "${#paths[@]}")
+answer=$(shunt_invoke "$MODE_NAME" "$message_file" "$meta") || exit 1
+printf '%s\n' "$answer"
 
-# Token usage to stderr
+# Token usage to stderr, with the all-time ledger total
 char_count=$(wc -c < "$message_file" | tr -d ' ')
-echo "[shunt: ~$((char_count / 4)) input tokens | delegated to $MODE_NAME]" >&2
+echo "[shunt: ~$((char_count / 4)) tokens in, ~$((${#answer} / 4)) back | $(shunt_saved_total) kept out of context all-time]" >&2

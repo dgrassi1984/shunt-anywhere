@@ -51,6 +51,9 @@ STUB
 chmod +x "$STUBS"/*
 PATH="$STUBS:$PATH"
 export PATH
+# The ledger must not record stubbed test calls: point it at the workdir, then
+# assert on it below.
+export SHUNT_STATS_FILE="$WORKDIR/stats.jsonl"
 
 # shellcheck source=../scripts/lib/worker.sh
 . "$PLUGIN_DIR/scripts/lib/worker.sh"
@@ -143,6 +146,32 @@ check "claude-code-writer-prompt" "yes" "$(argv_pair claude '--system-prompt' "$
 SHUNT_WORKER_MODEL="claude-sonnet-5" shunt_invoke bulk-reader "$message_file" >/dev/null
 check "model-override-honoured" "yes" "$(argv_pair claude '--model' 'claude-sonnet-5')" \
   "SHUNT_WORKER_MODEL replaces the default"
+
+# ── Savings ledger ──
+
+: > "$SHUNT_STATS_FILE"
+shunt_invoke bulk-reader "$message_file" ',"paths":2,"returned":true' >/dev/null
+check "stats-ledger-mode" "bulk-reader" "$(jq -rs '.[0].mode // empty' "$SHUNT_STATS_FILE")" \
+  "every delegation is recorded with its mode"
+check "stats-ledger-tokens" "yes" \
+  "$(jq -rs '.[0] | if (.input_tokens > 0 and .output_tokens > 0) then "yes" else "no" end' "$SHUNT_STATS_FILE")" \
+  "tokens in and out are in the ledger"
+check "stats-ledger-meta" "yes" \
+  "$(jq -rs '.[0] | if ((.paths // 0) > 0 and .returned) then "yes" else "no" end' "$SHUNT_STATS_FILE")" \
+  "the caller's extra fields travel with the record"
+
+SHUNT_STUB_FAIL=1 shunt_invoke bulk-reader "$message_file" >/dev/null 2>&1
+check "stats-failure-recorded" "7" "$(jq -rs '.[-1].rc // empty' "$SHUNT_STATS_FILE")" \
+  "a failed worker is recorded, not forgotten"
+expected=$(jq -rs '.[0] | .input_tokens - .output_tokens' "$SHUNT_STATS_FILE")
+check "stats-saved-excludes-failures" "$expected" "$(shunt_saved_total)" \
+  "the running total counts kept-out tokens from successes only"
+
+: > "$SHUNT_STATS_FILE"
+shunt_invoke bulk-reader "$message_file" ',"returned":false' >/dev/null
+check "stats-disk-answer-saves-input" "$(jq -rs '.[0].input_tokens' "$SHUNT_STATS_FILE")" \
+  "$(shunt_saved_total)" \
+  "an answer that went to disk counts in full, not net of its size"
 
 # ── gemini transport ──
 
