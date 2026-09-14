@@ -159,13 +159,21 @@ shunt_record() {
   local dir in_tok out_tok model
   dir="$(dirname "$SHUNT_STATS_FILE")"
   mkdir -p "$dir" 2>/dev/null || return 0
+  [ -w "$dir" ] || return 0
   in_tok=$(( $(wc -c < "$message_file" | tr -d ' ') / 4 ))
   out_tok=$(( ${#text} / 4 ))
   model="${SHUNT_WORKER_MODEL-$(shunt_default_model "$SHUNT_WORKER")}"
-  printf '{"ts":"%s","kind":"delegation","host":"%s","worker":"%s","model":"%s","mode":"%s","input_tokens":%d,"output_tokens":%d,"secs":%d,"rc":%d%s}\n' \
-    "$(date -u +%Y-%m-%dT%H:%M:%SZ)" "$(shunt_detect_host)" "$SHUNT_WORKER" "$model" "$mode" \
-    "$in_tok" "$out_tok" "$secs" "$rc" "$meta" \
-    >> "$SHUNT_STATS_FILE" 2>/dev/null || true
+  # Subshell, because a failed `>>` redirection is reported by the shell that
+  # set it up — before the command's own `2>/dev/null` applies — so an
+  # unwritable ledger used to print `Operation not permitted` into a tool
+  # result that was supposed to be silent. The subshell's stderr is /dev/null,
+  # so the failure stays where a best-effort ledger belongs: nowhere.
+  (
+    printf '{"ts":"%s","kind":"delegation","host":"%s","worker":"%s","model":"%s","mode":"%s","input_tokens":%d,"output_tokens":%d,"secs":%d,"rc":%d%s}\n' \
+      "$(date -u +%Y-%m-%dT%H:%M:%SZ)" "$(shunt_detect_host)" "$SHUNT_WORKER" "$model" "$mode" \
+      "$in_tok" "$out_tok" "$secs" "$rc" "$meta" \
+      >> "$SHUNT_STATS_FILE"
+  ) 2>/dev/null || true
 }
 
 # Append one gate event: a hook refused a read. Not a saving — the agent may
@@ -178,9 +186,15 @@ shunt_record_gate() {
   local dir
   dir="$(dirname "$SHUNT_STATS_FILE")"
   mkdir -p "$dir" 2>/dev/null || return 0
-  printf '{"ts":"%s","kind":"gate","host":"%s","hook":"%s","files":%d,"lines":%d}\n' \
-    "$(date -u +%Y-%m-%dT%H:%M:%SZ)" "$(shunt_detect_host)" "$hook" "$files" "$lines" \
-    >> "$SHUNT_STATS_FILE" 2>/dev/null || true
+  [ -w "$dir" ] || return 0
+  # Subshell for the same reason as shunt_record: the shell reports a failed
+  # redirection itself, so `2>/dev/null` on the printf is not enough to keep an
+  # unwritable ledger out of the refusal text the agent reads.
+  (
+    printf '{"ts":"%s","kind":"gate","host":"%s","hook":"%s","files":%d,"lines":%d}\n' \
+      "$(date -u +%Y-%m-%dT%H:%M:%SZ)" "$(shunt_detect_host)" "$hook" "$files" "$lines" \
+      >> "$SHUNT_STATS_FILE"
+  ) 2>/dev/null || true
 }
 
 # Tokens kept out of context, all time: what a delegation carried away minus

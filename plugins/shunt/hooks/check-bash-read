@@ -44,6 +44,40 @@ case "$command" in
   *\|*|*\>*) exit 0 ;;
 esac
 
+# `sed -n 'A,Bp' file` is the sanctioned way to print a section — but only while
+# the range is a section. Widening it to the file's own length prints the whole
+# file, and the anchored matcher below never sees it: the refusal text itself
+# recommends `sed -n`, so an agent that follows the advice with a big range
+# walked straight through the gate. Same threshold, same verdict.
+# Prints the path when the range is unbounded (A,$p) or wider than MIN_LINES
+# and the named file is actually large; prints nothing otherwise.
+_shunt_sed_range_path() {
+  local cmd="$1" spec start end arg lines
+  printf '%s' "$cmd" | grep -qE '^sed[[:space:]]' || return 0
+  if printf '%s' "$cmd" | grep -qE "[0-9]+,[[:space:]]*\\\$p"; then
+    end="unbounded"
+  else
+    spec=$(printf '%s' "$cmd" | grep -oE "['\"]?[0-9]+,[0-9]+p['\"]?" | head -1 | tr -d "'\"")
+    [ -n "$spec" ] || return 0
+    start="${spec%%,*}"
+    end="${spec#*,}"
+    end="${end%p}"
+    case "$start$end" in *[!0-9]*) return 0 ;; esac
+    [ "$((end - start + 1))" -gt "$MIN_LINES" ] || return 0
+  fi
+  for arg in $(printf '%s' "$cmd" | sed -E 's/^sed[[:space:]]+//'); do
+    case "$arg" in -*) continue ;; esac
+    arg=$(printf '%s' "$arg" | tr -d '"'"'"'')
+    [ -f "$arg" ] || continue
+    lines=$(wc -l < "$arg" 2>/dev/null | tr -d ' ')
+    case "$lines" in ''|*[!0-9]*) continue ;; esac
+    [ "$lines" -gt "$MIN_LINES" ] || continue
+    printf '%s' "$arg"
+    return 0
+  done
+  return 0
+}
+
 # Extract the first non-flag argument of a read command.
 file_path=""
 if printf '%s' "$command" | grep -qE '^(cat|head|tail|less|more)[[:space:]]'; then
@@ -56,6 +90,7 @@ if printf '%s' "$command" | grep -qE '^(cat|head|tail|less|more)[[:space:]]'; th
   done
 fi
 
+[ -z "$file_path" ] && file_path="$(_shunt_sed_range_path "$command")"
 [ -z "$file_path" ] && exit 0
 [ -f "$file_path" ] || exit 0
 
@@ -75,6 +110,8 @@ shunt_lib="$(cd "$(dirname "$0")/../scripts/lib" 2>/dev/null && pwd)/worker.sh"
   echo "  ${BULK_READ} --via bash-gate --question \"<what you need to know>\" --paths \"${file_path}\""
   echo ""
   echo "The file goes to the worker, never into your context. If you need exact content"
-  echo "to make an edit, read just the section you need (sed -n '120,180p')."
+  echo "to make an edit, print a bounded section — at most ${MIN_LINES} lines, for example:"
+  echo ""
+  echo "  sed -n '120,180p' \"${file_path}\""
 } >&2
 exit 2
