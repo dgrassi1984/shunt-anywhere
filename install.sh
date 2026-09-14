@@ -272,7 +272,9 @@ install_gemini() {
     http*) ;;
     *)     url="https://github.com/$source" ;;
   esac
-  # --consent skips the [Y/n] prompt, which a piped run cannot answer.
+  # reinstall refuses while installed, so drop the old copy first (like the
+  # codex branch); --consent skips the [Y/n] prompt a piped run cannot answer.
+  gemini extensions uninstall "$PLUGIN" >/dev/null 2>&1 || true
   run_host gemini extensions install "$url" --consent \
     || { err "  extensions install failed"; return 1; }
   pin_gemini
@@ -446,7 +448,7 @@ if [ "$want_dsh"    = true ]; then install_dsh    || failures=$((failures + 1));
 
 say "Ledger and stats: ~/.local/state/shunt/savings.jsonl — read it with the plugin's shunt-stats"
 say "Uninstall: claude plugin uninstall $PLUGIN@$MARKETPLACE · codex plugin remove $PLUGIN@$MARKETPLACE ·"
-say "           gemini extensions remove shunt · dsh: rm -rf ~/.dsh/shunt ~/.dsh/skills/bulk-reader ~/.dsh/skills/code-writer"
+say "           gemini extensions uninstall shunt · dsh: rm -rf ~/.dsh/shunt ~/.dsh/skills/bulk-reader ~/.dsh/skills/code-writer"
 
 if [ "$failures" -gt 0 ]; then
   err "$failures host install(s) failed."
