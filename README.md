@@ -54,6 +54,10 @@ honour.
 
 Needs [`jq`](https://jqlang.org) (`apt install jq` / `brew install jq`).
 
+macOS works out of the box: the worker runs under GNU `timeout` where present,
+Homebrew `gtimeout` where installed, and otherwise a bundled perl watchdog —
+no `coreutils` install needed on a Mac.
+
 **Claude Code**
 
 ```bash

@@ -160,8 +160,11 @@ SHUNT_WORKER=codex
 answer=$(shunt_invoke bulk-reader "$message_file")
 check "codex-answer-returned" "- first line
 - second line" "$answer" "the -o file is the answer, not the event log"
-check "codex-noise-suppressed" "no" \
-  "$( case "$answer" in *"event log noise"*) echo yes ;; *) echo no ;; esac )" \
+# Not "$( case … esac )": macOS ships bash 3.2, which closes the command
+# substitution at the case pattern's first `)`.
+codex_noise="no"
+case "$answer" in *"event log noise"*) codex_noise="yes" ;; esac
+check "codex-noise-suppressed" "no" "$codex_noise" \
   "codex's stdout chatter never reaches the caller"
 check "codex-exec-subcommand" "yes" "$(argv_has codex 'exec')" "non-interactive subcommand"
 check "codex-stdin-prompt" "yes" "$(argv_has codex '-')" "the prompt is read from stdin"

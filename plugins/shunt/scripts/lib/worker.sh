@@ -6,6 +6,13 @@
 # headless call to whichever coding CLI is already installed — claude, gemini or
 # codex — so nothing here needs a SaaS account, an API key, or a second bill.
 #
+# The worker also runs under a time ceiling enforced by shunt_timeout below:
+# GNU `timeout` where installed, Homebrew `gtimeout`, else a small perl
+# watchdog — macOS ships no `timeout`, and the watchdog keeps the worker in
+# the foreground, because a backgrounded job gets /dev/null on stdin and a
+# stdin-only worker (`claude -p` with no prompt argument) reads the corpus
+# from there.
+#
 # Every delegation is one shot. Carrying context across calls would mean
 # re-sending the file corpus, which is the exact cost this plugin exists to
 # avoid. Ask again with the files instead — they never enter your context, so
@@ -85,6 +92,48 @@ shunt_preflight() {
   return 0
 }
 
+# Run a command under a time ceiling, GNU timeout semantics: exit 124 on
+# timeout, the command's own exit code otherwise. macOS ships no `timeout`, so
+# the provider is resolved at call time: GNU `timeout`, Homebrew `gtimeout`,
+# then a perl watchdog. The watchdog puts the command in its own process group
+# and kills the group — a worker's children must not outlive the ceiling
+# holding the caller's pipes — and it keeps the command in the foreground,
+# where its stdin is intact.
+shunt_timeout() {
+  if [ $# -lt 2 ]; then
+    echo "shunt: shunt_timeout needs <seconds> <command> [args...]" >&2
+    return 2
+  fi
+  local secs="$1"
+  shift
+  if command -v timeout >/dev/null 2>&1; then
+    timeout "$secs" "$@"
+    return $?
+  fi
+  if command -v gtimeout >/dev/null 2>&1; then
+    gtimeout "$secs" "$@"
+    return $?
+  fi
+  if command -v perl >/dev/null 2>&1; then
+    perl -e '
+      my $secs = shift @ARGV;
+      defined(my $kid = fork) or exit 1;
+      if ($kid == 0) { setpgrp(0, 0) or exit 111; exec @ARGV; exit 255 }
+      my $timed_out = 0;
+      $SIG{ALRM} = sub { $timed_out = 1; kill 15, -$kid };
+      alarm $secs;
+      waitpid $kid, 0;
+      exit 124 if $timed_out;
+      exit(($? & 127) ? 128 + ($? & 127) : ($? >> 8));
+    ' -- "$secs" "$@"
+    return $?
+  fi
+  # No provider at all: run uncapped, but say so — a silent ceiling-less run
+  # looks like a working one.
+  echo "shunt: no timeout provider (GNU timeout, gtimeout or perl); running $1 without a ceiling" >&2
+  "$@"
+}
+
 # One headless turn on the chosen CLI. $1 is the system prompt, the message
 # arrives on stdin, the answer goes to stdout. The transport evals stub this.
 shunt_worker() {
@@ -98,7 +147,7 @@ shunt_worker() {
       # --tools "" keeps this a pure completion. --setting-sources "" stops the
       # worker loading the project's CLAUDE.md, plugins and hooks, so it cannot
       # recurse into the very Read hook that sent the work here.
-      timeout "$SHUNT_TIMEOUT_SECONDS" env -u CLAUDECODE claude -p \
+      shunt_timeout "$SHUNT_TIMEOUT_SECONDS" env -u CLAUDECODE claude -p \
         "${mflag[@]}" --system-prompt "$system" \
         --tools "" --setting-sources "" --no-session-persistence
       ;;
@@ -107,7 +156,7 @@ shunt_worker() {
       # gemini has no system-prompt flag: -p text is appended after stdin, so
       # the instructions land last — which is where they bind best anyway.
       # Default approval mode stays: a worker that tries to write is refused.
-      timeout "$SHUNT_TIMEOUT_SECONDS" gemini "${mflag[@]}" -p "$system"
+      shunt_timeout "$SHUNT_TIMEOUT_SECONDS" gemini "${mflag[@]}" -p "$system"
       ;;
     codex)
       [ -n "$model" ] && mflag=(-m "$model")
@@ -115,7 +164,7 @@ shunt_worker() {
       # alone. read-only + ephemeral: the worker cannot touch the workspace and
       # leaves no rollout behind.
       out=$(mktemp) || return 1
-      { printf '%s\n\n' "$system"; cat; } | timeout "$SHUNT_TIMEOUT_SECONDS" \
+      { printf '%s\n\n' "$system"; cat; } | shunt_timeout "$SHUNT_TIMEOUT_SECONDS" \
         codex exec "${mflag[@]}" -s read-only --skip-git-repo-check --ephemeral \
         -c model_reasoning_effort=low -o "$out" - >/dev/null 2>&1
       rc=$?
