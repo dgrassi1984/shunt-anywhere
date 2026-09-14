@@ -15,7 +15,12 @@ Files derived from that work, and what changed:
                                           codex, chosen at run time; the turn runs
                                           under a timeout resolved at call time (GNU
                                           timeout, gtimeout, or a perl watchdog),
-                                          so macOS needs no coreutils
+                                          so macOS needs no coreutils; the claude
+                                          turn pins --setting-sources project and
+                                          --strict-mcp-config, because the empty
+                                          scope string is invalid and falls back to
+                                          loading the account's plugins and its
+                                          claude.ai connector MCP tool schemas
   plugins/shunt/hooks/check-file-size     blocks with exit 2 + stderr instead of a
                                           decision envelope, so Codex and Gemini CLI
                                           honour it too; handles batch reads and the
@@ -34,4 +39,6 @@ Files derived from that work, and what changed:
                                           added for the new input shapes; the codex-
                                           noise check no longer embeds a case
                                           statement in $( ), which macOS bash 3.2
-                                          cannot parse
+                                          cannot parse; a failed benchmark delegation
+                                          is reported as a failed row, never as a
+                                          0-token answer

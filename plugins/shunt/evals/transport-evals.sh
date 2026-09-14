@@ -124,8 +124,11 @@ check "claude-default-model" "yes" "$(argv_pair claude '--model' 'claude-haiku-4
 check "claude-system-prompt" "yes" "$(argv_pair claude '--system-prompt' "$BULK_PROMPT")" \
   "the mode instructions are the system prompt"
 check "claude-no-tools" "yes" "$(argv_has claude '--tools')" "a pure completion, no tool use"
-check "claude-no-settings" "yes" "$(argv_has claude '--setting-sources')" \
-  "the worker loads no project settings, so it cannot recurse into the read hook"
+check "claude-light-settings" "yes" \
+  "$(argv_pair claude '--setting-sources' 'project')" \
+  "the worker loads a single light scope, not every source"
+check "claude-strict-mcp" "yes" "$(argv_has claude '--strict-mcp-config')" \
+  "claude.ai connector MCP tool schemas never reach the worker"
 check "claude-no-persistence" "yes" "$(argv_has claude '--no-session-persistence')" \
   "a delegation leaves no session behind"
 check "claude-claudecode-unset" "unset" "$(cat "$WORKDIR/claudecode-claude")" \

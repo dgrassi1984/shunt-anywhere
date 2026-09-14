@@ -192,18 +192,26 @@ run_benchmark_bulk_read() {
   local without_tokens
   without_tokens=$(token_estimate "$corpus")
 
-  local response
-  response=$("$PLUGIN_DIR/scripts/bulk-read" --question "$question" --paths "${paths_args[@]}" 2>/dev/null) || true
-
-  local with_tokens
-  with_tokens=$(token_estimate "$response")
-
   local total_lines=0
   while IFS= read -r p; do
     local lines
     lines=$(wc -l < "$SCRIPT_DIR/$p" | tr -d ' ')
     total_lines=$(( total_lines + lines ))
   done < <(jq -r ".benchmarks[$idx].paths[]" "$BENCHMARKS")
+
+  local response rc_failed=0
+  response=$("$PLUGIN_DIR/scripts/bulk-read" --question "$question" --paths "${paths_args[@]}" 2>/dev/null) || rc_failed=1
+
+  # A failed delegation saved nothing. Reporting it as a 0-token answer would
+  # print as 100% savings — the worst kind of lie a token benchmark can tell —
+  # so it travels back as a -1 marker and the caller reports a failure.
+  if [ "$rc_failed" = 1 ]; then
+    echo "$total_lines $without_tokens -1"
+    return 0
+  fi
+
+  local with_tokens
+  with_tokens=$(token_estimate "$response")
 
   echo "$total_lines $without_tokens $with_tokens"
 }
@@ -220,9 +228,15 @@ run_benchmark_code_write() {
     context_corpus="$context_corpus$(cat "$SCRIPT_DIR/$p")"
   done < <(jq -r ".benchmarks[$idx].context_files[]" "$BENCHMARKS")
 
-  # Run code-write with --target so output goes to disk
+  # Run code-write with --target so output goes to disk. A failed or empty
+  # generation is a failure, not a 100% saving — same -1 marker as bulk-read.
   local target_file="${TMPDIR:-/tmp}/shunt-codegen-output.ts"
-  "$PLUGIN_DIR/scripts/code-write" --spec "$spec" --reference "$reference" --target "$target_file" 2>/dev/null || true
+  local rc_failed=0
+  "$PLUGIN_DIR/scripts/code-write" --spec "$spec" --reference "$reference" --target "$target_file" 2>/dev/null || rc_failed=1
+  if [ "$rc_failed" = 1 ] || [ ! -s "$target_file" ]; then
+    echo "0 -1 -1"
+    return 0
+  fi
 
   local generated=""
   [ -f "$target_file" ] && generated=$(cat "$target_file")
@@ -272,6 +286,12 @@ run_benchmarks() {
     elif [ "$btype" = "code-write" ]; then
       read -r total_lines without_tokens with_tokens <<< "$(run_benchmark_code_write "$i")"
     else
+      continue
+    fi
+
+    if [ "$with_tokens" = "-1" ]; then
+      printf "  \033[31mFAIL\033[0m  %-25s  the worker failed — a failed delegation saves nothing\n" "$name"
+      FAILED=$((FAILED + 1))
       continue
     fi
 

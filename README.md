@@ -32,6 +32,9 @@ Measured on this repo's own benchmark suite, with Claude Haiku 4.5 as the worker
 
 Reproduce it yourself with `bash plugins/shunt/evals/run.sh --benchmark`.
 
+Re-verified on macOS: same 97% total savings, and the offline suite passes
+93/93 cases under macOS's bash 3.2 with no `coreutils` installed.
+
 ## It runs on whatever you already have
 
 The worker is one headless turn on a CLI you are already signed in to. No API
@@ -148,12 +151,15 @@ home:
 - **Architecture.** Not a summarization problem.
 
 Targeted reads pass the gate untouched: an offset/limit read, a `sed -n
-'120,180p'`, a pipe into `grep`, a redirect.
+'120,180p'`, a pipe into `grep`, a redirect. A leading `rtk proxy ` prefix is
+unwrapped first — rtk's proxy runs the command raw — and `rtk read` is gated
+like `cat`, so an agent instructed to prefix rtk cannot slip a big read past
+the gate.
 
 ## Tests
 
 ```bash
-bash plugins/shunt/evals/run.sh              # 88 cases, offline, no worker needed
+bash plugins/shunt/evals/run.sh              # 93 cases, offline, no worker needed
 bash plugins/shunt/evals/run.sh --benchmark  # also re-measures savings (needs a worker)
 ```
 

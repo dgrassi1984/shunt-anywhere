@@ -144,12 +144,18 @@ shunt_worker() {
   case "$SHUNT_WORKER" in
     claude)
       [ -n "$model" ] && mflag=(--model "$model")
-      # --tools "" keeps this a pure completion. --setting-sources "" stops the
-      # worker loading the project's CLAUDE.md, plugins and hooks, so it cannot
-      # recurse into the very Read hook that sent the work here.
+      # --tools "" keeps this a pure completion. --setting-sources takes a
+      # single scope, not a list of "none": the empty string is invalid and
+      # silently falls back to every source — which loads the account's
+      # plugins and its claude.ai connector MCP servers, hundreds of tool
+      # schemas that can exceed the model's context on their own. `project`
+      # is the lightest valid scope, --strict-mcp-config drops every MCP
+      # server, and a worker with no tools cannot recurse into the very Read
+      # hook that sent the work here.
       shunt_timeout "$SHUNT_TIMEOUT_SECONDS" env -u CLAUDECODE claude -p \
         "${mflag[@]}" --system-prompt "$system" \
-        --tools "" --setting-sources "" --no-session-persistence
+        --tools "" --setting-sources project --strict-mcp-config \
+        --no-session-persistence
       ;;
     gemini)
       [ -n "$model" ] && mflag=(-m "$model")
