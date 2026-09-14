@@ -8,7 +8,9 @@
 > Portal tenant to use it.
 >
 > What this fork changes: the worker is a CLI you already sign into, and the gate works in
-> Claude Code, Codex CLI and Gemini CLI instead of only Claude Code. Most files here are
+> Claude Code, Codex CLI, Gemini CLI and DeepSeek Harness instead of only Claude Code.
+> Every delegation is recorded in a savings ledger, `install.sh` sets up all four hosts,
+> and macOS works out of the box. Most files here are
 > still theirs — [NOTICE](NOTICE) lists the provenance file by file. Apache-2.0, same as upstream.
 
 Your coding agent spends most of its context on I/O, not thinking. Reading one
@@ -164,8 +166,8 @@ SHUNT_MIN_LINES=500
 Every delegation — success or failure — is appended to a one-line JSON record
 in `~/.local/state/shunt/savings.jsonl` (XDG state dir): tokens in, tokens
 back, worker, model, mode, duration, and whether the answer came back into
-your context or went to disk. Claude Code, Codex CLI and Gemini CLI all write
-the same ledger, so the numbers are all-time across hosts.
+your context or went to disk. Claude Code, Codex CLI, Gemini CLI and DeepSeek
+Harness all write the same ledger, so the numbers are all-time across hosts.
 
 ```bash
 scripts/shunt-stats              # calls, tokens kept out of context, by worker/mode
@@ -219,6 +221,26 @@ argv — so a flag typo fails here rather than in production.
   relies on the agent noticing the skill.
 - **Latency.** A delegation is a 10-30 second subprocess. That is the trade: wall
   clock for context.
+
+## Differences from the original port
+
+On top of [the original shunt-anywhere](https://github.com/SalehB1/shunt-anywhere):
+
+- **macOS works out of the box** — no GNU `timeout` needed (Homebrew `gtimeout`
+  or a bundled perl watchdog), and the evals are bash 3.2 clean.
+- **`rtk`-wrapped reads are gated** — `rtk proxy cat big.py` runs the command
+  raw, so it is unwrapped before detection; `rtk read` is gated like `cat`.
+- **the claude worker carries no account baggage** — `--setting-sources
+  project --strict-mcp-config` keeps plugins and claude.ai connector MCP
+  tool schemas (~226K tokens observed) out of the worker's request.
+- **a savings ledger** — every delegation is recorded and `shunt-stats`
+  summarizes what was kept out of context, all time, per worker and mode.
+- **`install.sh`** — claude, codex, gemini and dsh in one run, with per-host
+  worker pins and a `curl | bash` path.
+- **DeepSeek Harness** — hot-loaded skills, an opt-in hard gate through
+  DSH's own `dsh-hooks-claude-code` bridge, and `host=dsh` in the ledger.
+- **the benchmark does not lie** — a failed delegation prints as a failed
+  row, never as a 100% saving.
 
 ## Credits
 
