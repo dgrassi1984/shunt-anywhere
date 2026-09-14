@@ -410,9 +410,26 @@ dsh_gate_wiring() {
 }
 EOF
   say "  gate hooks written: $HOME/.dsh/shunt/dsh-hooks.json"
-  if ! run_host dsh --profile "$dsh_profile" plugin add @deepseek-ai/dsh-hooks-claude-code; then
-    err "  dsh plugin add failed — the bridge package is required for the gate"
-    return 1
+  # dsh and its hook bridges ship in lockstep, but npm's latest tag can lag a
+  # release line (0.0.1-rc.5 vs the running 0.1.5-rc.1) — pin the bridge to the
+  # running dsh's exact version, the way the profile pins its other
+  # @deepseek-ai dependencies.
+  local bridge="@deepseek-ai/dsh-hooks-claude-code" dshver
+  dshver=$(dsh -V 2>/dev/null || true)
+  # The profile is a pnpm workspace and its @deepseek-ai dependencies live in
+  # the workspace root package.json (the subagent plugins do) — -w is the
+  # explicit form pnpm demands there.
+  if [ -n "$dshver" ]; then
+    bridge="$bridge@$dshver"
+    if ! run_host dsh plugin --profile "$dsh_profile" add -w --save-exact "$bridge"; then
+      err "  dsh plugin add failed — the bridge package is required for the gate"
+      return 1
+    fi
+  else
+    if ! run_host dsh plugin --profile "$dsh_profile" add -w "$bridge"; then
+      err "  dsh plugin add failed — the bridge package is required for the gate"
+      return 1
+    fi
   fi
   local patch="$profdir/cordis.patch.yml"
   if grep -q 'hooks-claude-code' "$patch" 2>/dev/null; then
@@ -422,7 +439,7 @@ EOF
     cat >> "$patch" <<EOF
 
 # ── shunt-anywhere read gate (added by install.sh --dsh-gate) ──
-# Deletes cleanly: remove this block, then \`dsh --profile $dsh_profile plugin remove @deepseek-ai/dsh-hooks-claude-code\`.
+# Deletes cleanly: remove this block, then \`dsh plugin --profile $dsh_profile remove -w @deepseek-ai/dsh-hooks-claude-code\`.
 - insert:
     - id: hooks-claude-code
       name: '@deepseek-ai/dsh-hooks-claude-code'
